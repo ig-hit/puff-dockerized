@@ -1,0 +1,82 @@
+version: '3'
+services:
+  service:
+    container_name: sanos-web-service
+    command: >
+      bash -c "sleep 10 &&
+      ./manage.py migrate &&
+      ./manage.py setup &&
+      ./manage.py runserver 0.0.0.0:8000"
+    image: igdoc/puff:1.0
+    ports:
+      - 4700:8000
+    environment:
+      - DJANGO_SETTINGS_MODULE=settings
+
+      - DATABASE_NAME=sanos
+      - DATABASE_USER=sanos
+      - DATABASE_PASSWORD=sanossanos
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_HOST=influxdb
+      - INFLUXDB_PORT=8086
+      - INFLUXDB_ORG=sanos
+      - INFLUXDB_BUCKET=sanos
+      - INFLUXDB_TOKEN=sanossanos
+
+      - INITIAL_SUPERUSER_USERNAME=sanos
+      - INITIAL_SUPERUSER_PASSWORD=sanossanos
+      - INITIAL_APP_USERNAME=app@app
+      - INITIAL_APP_PASSWORD=app
+    depends_on:
+      - postgres
+      - influxdb
+    networks:
+      - sanos
+
+  postgres:
+    container_name: sanos-postgres13
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=sanos
+      - POSTGRES_USER=sanos
+      - POSTGRES_PASSWORD=sanos
+    volumes:
+      - sanos-postgres-data:/var/lib/postgresql
+    networks:
+      - sanos
+
+  influxdb:
+    image: quay.io/influxdb/influxdb:v2.0.3
+    container_name: sanos-influxdb2
+    volumes:
+      - sanos-influxdbv2-data:/.influxdbv2
+    environment:
+      - INFLUXDB_HOST=influxdb
+      - INFLUXDB_PORT=8086
+      - INFLUXDB_ORG=sanos
+      - INFLUXDB_BUCKET=sanos
+      - INFLUXDB_TOKEN=sanossanos
+    networks:
+      - sanos
+
+  influxdb_cli:
+    links:
+      - influxdb
+    image: quay.io/influxdb/influxdb:v2.0.3
+    container_name: sanos-influxdb-cli-setup
+    entrypoint: influx setup --bucket sanos -t sanossanos -o sanos --username=sanos --password=sanossanos --host=http://influxdb:8086 -f
+    restart: on-failure:10
+    depends_on:
+      - influxdb
+    networks:
+      - sanos
+
+volumes:
+  sanos-postgres-data:
+  sanos-influxdbv2-data:
+
+networks:
+  sanos:
